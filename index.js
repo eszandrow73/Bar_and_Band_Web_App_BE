@@ -5,6 +5,8 @@ const PORT = 8999
 //import Express from 'express'
 const express = require('express')
 const cors = require('cors')
+const bodyParser = require('body-parser');
+const multer = require('multer');
 var nodemailer = require('nodemailer');
 
 /*
@@ -14,8 +16,15 @@ const path = require('path')
 const cors = require('cors')
 */
 
+
 app = express()
 app.use(cors());
+app.use( bodyParser.json() );       // to support JSON-encoded bodies
+app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
+  extended: true
+})); 
+app.use(express.json({limit: '50mb'}));
+app.use(express.urlencoded({limit: '50mb'}));
 
 const client = new Client({
     user: "postgres",
@@ -30,7 +39,7 @@ const barClient = new Client({
     password: "P@125362a",
     host: "localhost",
     port:5432,
-    database:"barMusicApp"
+    database: "postgres"//"barMusicApp"
 })
 
 async function makeConnect(){
@@ -49,7 +58,27 @@ var connectionDB = makeConnect()
 //postgres://postgres:P@125362a@localhost:5432/testData
 //'SELECT * FROM public."testTable"')
 
+/*------------------------------------------
+--------------------------------------------
+image upload code using multer\
 
+
+D:/Programming/NodeJS/GitHub_repos/Bar_and_Band_Web_App_BE/images/
+--------------------------------------------
+--------------------------------------------*/
+var storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'images');
+    },
+    filename: function (req, file, cb) {
+        console.log(file.originalname);
+        cb(null, Date.now() + '-' + file.originalname);
+    }
+ });
+ const maxSize = 2 * 1024 * 1024;
+ var upload = multer({ storage: storage,
+    limits: { fileSize: maxSize }, 
+});
 
 app.get('/', async(req , res ) => {
     //res.html(html_example)
@@ -58,7 +87,22 @@ app.get('/', async(req , res ) => {
     res.send(Buffer.from(html_test));
 })
 
-
+app.get('/i_test', async(req,res)=>{
+    raw_html = `
+    <!DOCTYPE html>
+    <html lang="eng">
+    <body>
+        <h1>Upload Image</h1>
+        <form method="POST" action="http://localhost:8999/api/image-upload" enctype="multipart/form-data">
+            <input type="file" name="image">
+            <input type="submit">
+        </form>
+    </body>
+    </html>
+    `
+    res.set('Content-type', 'text/html')
+    res.send(Buffer.from(raw_html))
+})
 
 app.get('/barData', async(req, res)=>{
     
@@ -128,6 +172,23 @@ app.get('/bandData', async(req, res)=>{
     //res.json(outData)
 })
 
+app.post('/api/image-upload', upload.single('image'), async(req, res) => {
+    const image = req.file;
+    console.log(image)
+    console.log(req.file.filename)
+    barClient.query(`INSERT INTO public.testimages (imagename) VALUES('${req.file.filename}');`)
+    .then((dbRes)=>{
+        //console.table(dbRes.rows)
+        //console.log(dbRes.rows)
+        outData = dbRes.rows
+        res.send({message: 'File uploaded successfully.', image});
+    }).catch((e)=>{
+        console.log(e)
+        res.json(e)
+    })
+      
+  });
+
 app.get('/addBand', async(req, res)=>{
     
     var inputList = req.query
@@ -138,6 +199,8 @@ app.get('/addBand', async(req, res)=>{
     addToDB = addToDB + inputList.input[2] + "', '"
     addToDB = addToDB + inputList.input[3] + "', '"
     addToDB = addToDB + inputList.input[4] + "');"
+
+    console.log(addToDB)
 
     var outData = {}
    barClient.query('INSERT INTO public.banddata (id, spotify, website, "style", members)'+ addToDB)
@@ -157,10 +220,12 @@ app.get('/addBand', async(req, res)=>{
     }).catch((e)=>{
         console.log(e)
         res.json(e)
-    }).finally(async ()=>{
+    })
+    /*
+    .finally(async ()=>{
         res.json(outData)
     })
-    
+    */
 
 })
 
@@ -212,6 +277,24 @@ app.get('/artData', async(req, res)=>{
     })
 })
 
+app.get('/getPosts', async(req,res)=>{
+    var outData = {}
+
+    barClient.query('select * from public.testimages') 
+   //barClient.query('select * from public."postTable"')
+   //barClient.query(`SELECT ENCODE("postImage",'base64') as base64,"postText" from public."postTable";`)
+    .then((dbRes)=>{
+        //console.table(dbRes.rows)
+        //console.log(dbRes.rows)
+        outData = dbRes.rows
+        res.json(outData)
+        
+    }).catch((e)=>{
+        console.log(e)
+        res.json(e)
+    })
+})
+
 app.get('/sendEmail', async(req, res)=>{
     var nodemailer = require('nodemailer');
 
@@ -224,11 +307,14 @@ app.get('/sendEmail', async(req, res)=>{
         }
       });
 
+    var inputList = req.query
+    console.log(inputList)
+
     var mailOptions = {
-        from: 'ericzan73964@gmail.com',
-        to: 'ericzan73@aol.com',
-        subject: 'test email from api route',
-        text: 'That was easy!'
+        from: inputList.input[0],//'ericzan73964@gmail.com',
+        to: inputList.input[1],//'ericzan73@aol.com',
+        subject: inputList.input[2],//'test email from api route',
+        text: inputList.input[3]//'That was easy!'
     };
 
     transport.sendMail(mailOptions, function(error, info){
@@ -241,6 +327,12 @@ app.get('/sendEmail', async(req, res)=>{
     });
 })
 
+app.get("/image/:test", async(req,res)=>{
+    //let img_path = "./images/test.png"
+    console.log(req.params.test)
+    let img_path = `D:/Programming/NodeJS/GitHub_repos/Bar_and_Band_Web_App_BE/images/${req.params.test}`
+    res.sendFile(img_path)
+})
 
 app.get("/checkUser/:userName", async(req,res)=>{
     console.log(req.params)
