@@ -39,7 +39,7 @@ const barClient = new Client({
     password: "P@125362a",
     host: "localhost",
     port:5432,
-    database: "postgres"//"barMusicApp"
+    database: "barMusicApp"//"postgres"
 })
 
 async function makeConnect(){
@@ -87,14 +87,24 @@ app.get('/', async(req , res ) => {
     res.send(Buffer.from(html_test));
 })
 
-app.get('/i_test', async(req,res)=>{
+app.get('/i_test/:inputPage', async(req,res)=>{
     raw_html = `
     <!DOCTYPE html>
     <html lang="eng">
+
     <body>
-        <h1>Upload Image</h1>
+        <h1>Upload Image : ${req.params.inputPage}</h1>
         <form method="POST" action="http://localhost:8999/api/image-upload" enctype="multipart/form-data">
-            <input type="file" name="image">
+            <input type="file" name="image" onChange="function loadImage(event){
+                console.log(event)
+                console.log(event.target.files[0]);
+                var selectedImage = event.target.files[0];
+                var elem = document.createElement('img');
+                elem.src = window.URL.createObjectURL(selectedImage);
+                document.getElementById('body').appendChild(elem);
+            }
+            loadImage(event);">
+            <div id='body'></div>
             <input type="submit">
         </form>
     </body>
@@ -194,16 +204,15 @@ app.get('/addBand', async(req, res)=>{
     var inputList = req.query
 
     var addToDB = ""
-    addToDB = " VALUES(" + inputList.input[0] + ", '"
+    addToDB = " VALUES('" + inputList.input[0] + "', '"
     addToDB = addToDB + inputList.input[1] + "', '"
     addToDB = addToDB + inputList.input[2] + "', '"
-    addToDB = addToDB + inputList.input[3] + "', '"
-    addToDB = addToDB + inputList.input[4] + "');"
+    addToDB = addToDB + inputList.input[3] + "');"
 
     console.log(addToDB)
 
     var outData = {}
-   barClient.query('INSERT INTO public.banddata (id, spotify, website, "style", members)'+ addToDB)
+   barClient.query('INSERT INTO public.banddata (spotify, website, "style", members)'+ addToDB)
     .then((dbRes)=>{
         //console.log(res)
         console.table(dbRes.rows)
@@ -226,6 +235,32 @@ app.get('/addBand', async(req, res)=>{
         res.json(outData)
     })
     */
+
+})
+
+app.get('/addPost', async(req, res)=>{
+    
+    var inputList = req.query
+
+    var addToDB = ""
+    addToDB = " VALUES(" + inputList.input[0] + ", '"
+    addToDB = addToDB + inputList.input[1] + "', '"
+    addToDB = addToDB + inputList.input[2] + "', "
+    addToDB = addToDB +  "null);"
+
+    console.log(addToDB)
+
+    var outData = {}
+   barClient.query('INSERT INTO public."postTable"(user_id, "postText", "location", img_id)'+ addToDB)
+    .then((dbRes)=>{
+        //console.log(res)
+        console.table(dbRes.rows)
+        console.log(dbRes.rows)
+        outData = dbRes.rows
+    }).catch((e)=>{
+        console.log(e)
+        res.json(e)
+    })
 
 })
 
@@ -277,11 +312,28 @@ app.get('/artData', async(req, res)=>{
     })
 })
 
-app.get('/getPosts', async(req,res)=>{
+app.get('/getImages', async(req,res)=>{
     var outData = {}
 
     barClient.query('select * from public.testimages') 
    //barClient.query('select * from public."postTable"')
+   //barClient.query(`SELECT ENCODE("postImage",'base64') as base64,"postText" from public."postTable";`)
+    .then((dbRes)=>{
+        //console.table(dbRes.rows)
+        //console.log(dbRes.rows)
+        outData = dbRes.rows
+        res.json(outData)
+        
+    }).catch((e)=>{
+        console.log(e)
+        res.json(e)
+    })
+})
+
+app.get('/getPosts', async(req,res)=>{
+    var outData = {}
+    
+    barClient.query('select * from public."postTable"')
    //barClient.query(`SELECT ENCODE("postImage",'base64') as base64,"postText" from public."postTable";`)
     .then((dbRes)=>{
         //console.table(dbRes.rows)
@@ -330,7 +382,8 @@ app.get('/sendEmail', async(req, res)=>{
 app.get("/image/:test", async(req,res)=>{
     //let img_path = "./images/test.png"
     console.log(req.params.test)
-    let img_path = `D:/Programming/NodeJS/GitHub_repos/Bar_and_Band_Web_App_BE/images/${req.params.test}`
+    let img_path = `C:/Users/Owner/Documents/API/DB_connect/Bar_and_Band_Web_App_BE/images/${req.params.test}`  //`D:/Programming/NodeJS/GitHub_repos/Bar_and_Band_Web_App_BE
+    
     res.sendFile(img_path)
 })
 
