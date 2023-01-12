@@ -347,6 +347,35 @@ app.get('/getPosts', async(req,res)=>{
     })
 })
 
+app.get('/getProfile', async(req,res)=>{
+    var outData = {}
+    
+    barClient.query('select * from public.profiledata')
+    .then((dbRes)=>{
+        outData = dbRes.rows
+        res.json(outData)
+    }).catch((e)=>{
+        console.log(e)
+        res.json(e)
+    })
+})
+
+app.get('/updateProfile', async(req,res)=>{
+    var inputList = req.query
+    console.log(inputList)
+    var outData = {}
+    var uId = parseInt(req.query.userId)
+    
+    barClient.query(`UPDATE public.profiledata SET profiletext='${req.query.profileEditText}' where user_id=${uId};`)
+    .then((dbRes)=>{
+        outData = dbRes.rows
+        res.json(outData)
+    }).catch((e)=>{
+        console.log(e)
+        res.json(e)
+    })
+})
+
 app.get('/sendEmail', async(req, res)=>{
     var nodemailer = require('nodemailer');
 
@@ -420,5 +449,21 @@ app.get("/band/:bandnum/member/:mnum", async(req, res)=>{
         res.json(outData)
     })
 })
+
+/*
+CREATE TABLE public.profiledata (
+	id serial NOT NULL,
+	profiletext varchar NULL,
+	profileimage varchar NULL,
+	user_id integer NULL
+);
+
+INSERT INTO public.profiledata
+(profiletext, profileimage, user_id)
+VALUES('add paragraph text here', '1673424011151-LoginBand.jpg', 1);
+
+UPDATE public.profiledata
+SET profiletext='This text was updated' where user_id=1;
+*/
 
 app.listen(PORT, () => console.log(`Server running on port : ${PORT}`))
