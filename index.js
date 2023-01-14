@@ -9,12 +9,13 @@ const bodyParser = require('body-parser');
 const multer = require('multer');
 var nodemailer = require('nodemailer');
 
-/*
-const axios = require("axios")
-const cheerio = require("cheerio")
-const path = require('path')
-const cors = require('cors')
-*/
+const fs = require('fs').promises;
+const path = require('path');
+const process = require('process');
+const {authenticate} = require('@google-cloud/local-auth');
+const {google} = require('googleapis');
+const MailMessage = require('nodemailer/lib/mailer/mail-message');
+const { DefaultTransporter } = require('google-auth-library');
 
 
 app = express()
@@ -39,7 +40,7 @@ const barClient = new Client({
     password: "P@125362a",
     host: "localhost",
     port:5432,
-    database: "barMusicApp"//"postgres"
+    database: "postgres"//"barMusicApp"//
 })
 
 async function makeConnect(){
@@ -94,7 +95,7 @@ app.get('/i_test/:inputPage', async(req,res)=>{
 
     <body>
         <h1>Upload Image : ${req.params.inputPage}</h1>
-        <form method="POST" action="http://localhost:8999/api/image-upload" enctype="multipart/form-data">
+        <form method="POST" action="http://localhost:8999/api/image-upload/${req.params.inputPage}" enctype="multipart/form-data">
             <input type="file" name="image" onChange="function loadImage(event){
                 console.log(event)
                 console.log(event.target.files[0]);
@@ -182,21 +183,36 @@ app.get('/bandData', async(req, res)=>{
     //res.json(outData)
 })
 
-app.post('/api/image-upload', upload.single('image'), async(req, res) => {
+app.post('/api/image-upload/:ptype', upload.single('image'), async(req, res) => {
     const image = req.file;
     console.log(image)
     console.log(req.file.filename)
-    barClient.query(`INSERT INTO public.testimages (imagename) VALUES('${req.file.filename}');`)
-    .then((dbRes)=>{
-        //console.table(dbRes.rows)
-        //console.log(dbRes.rows)
-        outData = dbRes.rows
-        res.send({message: 'File uploaded successfully.', image});
-    }).catch((e)=>{
-        console.log(e)
-        res.json(e)
-    })
-      
+    if(req.params.ptype=="Profile"){
+        //barClient.query(`INSERT INTO public.testimages (imagename) VALUES('');`)
+        barClient.query(`UPDATE public.profiledata    SET profileimage='${req.file.filename}' where user_id=1;`)
+        .then((dbRes)=>{
+            //console.table(dbRes.rows)
+            //console.log(dbRes.rows)
+            outData = dbRes.rows
+            res.send({message: 'File uploaded successfully.', image});
+        }).catch((e)=>{
+            console.log(e)
+            res.json(e)
+        })
+    }
+    if(req.params.ptype=="MainPost"){
+        let db_res = await barClient.query('select Max("postId") from public."postTable";')
+        barClient.query(`UPDATE public."postTable" SET img_id='${req.file.filename}' where "postId" = ` + db_res.rows[0].max.toString())
+        .then((dbRes)=>{
+            //console.table(dbRes.rows)
+            //console.log(dbRes.rows)
+            outData = dbRes.rows
+            res.send({message: 'File uploaded successfully.', image});
+        }).catch((e)=>{
+            console.log(e)
+            res.json(e)
+        })
+    }    
   });
 
 app.get('/addBand', async(req, res)=>{
@@ -411,7 +427,7 @@ app.get('/sendEmail', async(req, res)=>{
 app.get("/image/:test", async(req,res)=>{
     //let img_path = "./images/test.png"
     console.log(req.params.test)
-    let img_path = `C:/Users/Owner/Documents/API/DB_connect/Bar_and_Band_Web_App_BE/images/${req.params.test}`  //`D:/Programming/NodeJS/GitHub_repos/Bar_and_Band_Web_App_BE
+    let img_path = `D:/Programming/NodeJS/GitHub_repos/Bar_and_Band_Web_App_BE/images/${req.params.test}`//`C:/Users/Owner/Documents/API/DB_connect/Bar_and_Band_Web_App_BE`  //`
     
     res.sendFile(img_path)
 })
@@ -465,5 +481,154 @@ VALUES('add paragraph text here', '1673424011151-LoginBand.jpg', 1);
 UPDATE public.profiledata
 SET profiletext='This text was updated' where user_id=1;
 */
+
+// If modifying these scopes, delete token.json.
+//for more scopes : https://developers.google.com/gmail/api/auth/scopes
+
+const SCOPES = ['https://www.googleapis.com/auth/gmail.send'];//'https://www.googleapis.com/auth/gmail.readonly'];
+// The file token.json stores the user's access and refresh tokens, and is
+// created automatically when the authorization flow completes for the first
+// time.
+const TOKEN_PATH = path.join(process.cwd(), 'token.json');
+const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
+
+/**
+ * Reads previously authorized credentials from the save file.
+ *
+ * @return {Promise<OAuth2Client|null>}
+ */
+async function loadSavedCredentialsIfExist() {
+  try {
+    const content = await fs.readFile(TOKEN_PATH);
+    const credentials = JSON.parse(content);
+    return google.auth.fromJSON(credentials);
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * Serializes credentials to a file comptible with GoogleAUth.fromJSON.
+ *
+ * @param {OAuth2Client} client
+ * @return {Promise<void>}
+ */
+async function saveCredentials(client) {
+  const content = await fs.readFile(CREDENTIALS_PATH);
+  const keys = JSON.parse(content);
+  const key = keys.installed || keys.web;
+  const payload = JSON.stringify({
+    type: 'authorized_user',
+    client_id: key.client_id,
+    client_secret: key.client_secret,
+    refresh_token: client.credentials.refresh_token,
+  });
+  await fs.writeFile(TOKEN_PATH, payload);
+}
+
+/**
+ * Load or request or authorization to call APIs.
+ *
+ */
+async function authorize() {
+  let client = await loadSavedCredentialsIfExist();
+  if (client) {
+    return client;
+  }
+  client = await authenticate({
+    scopes: SCOPES,
+    keyfilePath: CREDENTIALS_PATH,
+  });
+  if (client.credentials) {
+    await saveCredentials(client);
+  }
+  return client;
+}
+
+/**
+ * Lists the labels in the user's account.
+ *
+ * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
+ */
+async function listLabels(auth) {
+  const gmail = google.gmail({version: 'v1', auth});
+  const res = await gmail.users.labels.list({
+    userId: 'me',
+  });
+  const labels = res.data //.labels;
+  if (!labels || labels.length === 0) {
+    console.log('No labels found.');
+    return;
+  }
+  console.log('Labels:');
+  console.log(labels)
+  /*labels.forEach((label) => {
+    console.log(`- ${label.name}`);
+  });
+  */
+}
+
+app.get('/sendEmailReal', async(req, res)=>{
+    //authorize email before sending message
+    authorize().then(async(auth)=>{
+//async function gmailFun(auth) {
+        const gmail = google.gmail({version: 'v1', auth});
+        
+        /*
+        const subject = '🤘 Hello 🤘';
+        const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+        var messageParts = [
+            'From: Eric Zandrow <ericzan73964@gmail.com>',
+            'To: Eric Zandrow <ericzan73964@gmail.com>',
+            'Content-Type: text/html; charset=utf-8',
+            'MIME-Version: 1.0',
+            `Subject: ${utf8Subject}`,
+            '',
+            'This is a message just to say hello.',
+            'So... <b>Hello!</b>  🤘❤️😎',
+        ];
+        */
+       var inputList = req.query
+        console.log(inputList)
+
+        /*var mailOptions = {
+            from: inputList.input[0],//'ericzan73964@gmail.com',
+            to: inputList.input[1],//'ericzan73@aol.com',
+            subject: inputList.input[2],//'test email from api route',
+            text: inputList.input[3]//'That was easy!'
+        }; */
+        messageParts = [
+            `From: ${inputList.input[0]}`,//'ericzan73964@gmail.com',
+            `To: ${inputList.input[1]}`,//'ericzan73@aol.com',
+            'Content-Type: text/html; charset=utf-8',
+            'MIME-Version: 1.0',
+            `Subject: ${inputList.input[2]}`,//'test email from api route',
+            '',
+            `${inputList.input[3]}`//'That was easy!'
+        ]
+        const message = messageParts.join('\n');
+
+        // The body needs to be base64url encoded.
+        const encodedMessage = Buffer.from(message)
+            .toString('base64')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+
+        const resM = await gmail.users.messages.send({
+            userId: 'me',
+            requestBody: {
+            raw: encodedMessage,
+            },
+        });
+        console.log(resM.data);
+        return res.json(resM.data.threadId);
+    })
+    .catch((err)=>{
+        console.log.err
+        return res.json(err)}
+    );
+})
+
 
 app.listen(PORT, () => console.log(`Server running on port : ${PORT}`))
