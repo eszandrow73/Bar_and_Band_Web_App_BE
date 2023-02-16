@@ -20,12 +20,14 @@ const { DefaultTransporter } = require('google-auth-library');
 
 app = express()
 app.use(cors());
+/*
 app.use( bodyParser.json() );       // to support JSON-encoded bodies
 app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
   extended: true
-})); 
+})); */
 app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb'}));
+
 
 const client = new Client({
     user: "postgres",
@@ -76,10 +78,12 @@ var storage = multer.diskStorage({
         cb(null, Date.now() + '-' + file.originalname);
     }
  });
+ 
  const maxSize = 2 * 1024 * 1024;
  var upload = multer({ storage: storage,
-    limits: { fileSize: maxSize }, 
+    //limits: { fileSize: maxSize }, 
 });
+
 
 app.get('/', async(req , res ) => {
     //res.html(html_example)
@@ -187,6 +191,7 @@ app.post('/api/image-upload/:ptype', upload.single('image'), async(req, res) => 
     const image = req.file;
     console.log(image)
     console.log(req.file.filename)
+    console.log("EZ DEBUG")
     if(req.params.ptype=="Profile"){
         //barClient.query(`INSERT INTO public.testimages (imagename) VALUES('');`)
         barClient.query(`UPDATE public.profiledata    SET profileimage='${req.file.filename}' where user_id=1;`)
@@ -202,6 +207,7 @@ app.post('/api/image-upload/:ptype', upload.single('image'), async(req, res) => 
     }
     if(req.params.ptype=="MainPost"){
         let db_res = await barClient.query('select Max("postId") from public."postTable";')
+        console.log(db_res.rows[0].max.toString())
         barClient.query(`UPDATE public."postTable" SET img_id='${req.file.filename}' where "postId" = ` + db_res.rows[0].max.toString())
         .then((dbRes)=>{
             //console.table(dbRes.rows)
@@ -314,7 +320,7 @@ app.get('/artData', async(req, res)=>{
     var outData = {}
 
     
-   barClient.query('select * from public."artistTable"')
+   barClient.query('select artwork, artist_name, sponsor, user_id, band_id, id from public."artistTable"')
     .then((dbRes)=>{
         //console.log(res)
         console.table(dbRes.rows)
@@ -349,7 +355,7 @@ app.get('/getImages', async(req,res)=>{
 app.get('/getPosts', async(req,res)=>{
     var outData = {}
     
-    barClient.query('select * from public."postTable"')
+    barClient.query('select "postText", "location", "postId", user_id, img_id from public."postTable"')
    //barClient.query(`SELECT ENCODE("postImage",'base64') as base64,"postText" from public."postTable";`)
     .then((dbRes)=>{
         //console.table(dbRes.rows)
@@ -432,10 +438,29 @@ app.get("/image/:test", async(req,res)=>{
     res.sendFile(img_path)
 })
 
-app.get("/checkUser/:userName", async(req,res)=>{
+app.get("/getUser/:userName", async(req,res)=>{
     console.log(req.params)
     
-    barClient.query('SELECT username, "password", email FROM public.user_info '+ `WHERE username = '${req.params.userName}'`)
+    barClient.query('SELECT username, account_id FROM public.user_info '+ `WHERE username = '${req.params.userName}'`)
+    //username = '${req.params.userName}'`)
+    .then((dbRes)=>{
+        //console.log(res)
+        console.table(dbRes.rows) 
+        console.log(dbRes.rows)
+        outData = dbRes.rows
+    }).catch((e)=>{
+        console.log(e)
+        res.json(e)
+    }).then(async()=>{
+        res.json(outData)
+    })
+})
+
+app.get("/checkUser/:userId", async(req,res)=>{
+    console.log(req.params)
+    
+    barClient.query('SELECT username, "password", email FROM public.user_info '+ `WHERE account_id = ${req.params.userId}`)
+    //username = '${req.params.userName}'`)
     .then((dbRes)=>{
         //console.log(res)
         console.table(dbRes.rows) 
@@ -466,21 +491,6 @@ app.get("/band/:bandnum/member/:mnum", async(req, res)=>{
     })
 })
 
-/*
-CREATE TABLE public.profiledata (
-	id serial NOT NULL,
-	profiletext varchar NULL,
-	profileimage varchar NULL,
-	user_id integer NULL
-);
-
-INSERT INTO public.profiledata
-(profiletext, profileimage, user_id)
-VALUES('add paragraph text here', '1673424011151-LoginBand.jpg', 1);
-
-UPDATE public.profiledata
-SET profiletext='This text was updated' where user_id=1;
-*/
 
 // If modifying these scopes, delete token.json.
 //for more scopes : https://developers.google.com/gmail/api/auth/scopes
