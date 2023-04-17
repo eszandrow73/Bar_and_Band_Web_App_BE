@@ -32,20 +32,12 @@ app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb'}));
 
 
-const client = new Client({
+const barClient = new Client({
     user: "postgres",
-    password: "P@125362a",
+    password: "12345",
     host: "localhost",
     port:5432,
     database:"postgres"
-})
-
-const barClient = new Client({
-    user: "postgres",
-    password: "P@125362a",
-    host: "localhost",
-    port:5432,
-    database: "postgres"//"barMusicApp"//
 })
 
 async function makeConnect(){
@@ -59,19 +51,7 @@ async function makeConnect(){
 }
 
 var connectionDB = makeConnect()
-//host = DESKTOP-AFM2IKG ?
 
-//postgres://postgres:P@125362a@localhost:5432/testData
-//'SELECT * FROM public."testTable"')
-
-/*------------------------------------------
---------------------------------------------
-image upload code using multer\
-
-
-D:/Programming/NodeJS/GitHub_repos/Bar_and_Band_Web_App_BE/images/
---------------------------------------------
---------------------------------------------*/
 var storage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, 'images');
@@ -90,9 +70,8 @@ var storage = multer.diskStorage({
 
 app.get("/chat/:indata", async(req, res)=>{
     let in_text = req.params.indata
-    const config = new Configuration({apiKey : "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"})
+    const config = new Configuration({apiKey : "a key"})
     const oaSession = new OpenAIApi(config)
-    //coa.OpenAIApi.api_key =  "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"
     let oaresponse = await oaSession.createCompletion({
     //ChatCompletionRequestMessageRoleEnum({
         model:"text-davinci-003",
@@ -105,9 +84,8 @@ app.get("/chat/:indata", async(req, res)=>{
 
 app.get("/chat_image/:indata", async(req, res)=>{
     let in_text = req.params.indata
-    const config = new Configuration({apiKey : "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"})
+    const config = new Configuration({apiKey : "a key"})
     const oaSession = new OpenAIApi(config)
-    //coa.OpenAIApi.api_key =  "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"
     let oaresponse = await oaSession.createImage({
     //ChatCompletionRequestMessageRoleEnum({
         prompt:in_text,//"a white siamese cat",
@@ -444,8 +422,8 @@ app.get('/sendEmail', async(req, res)=>{
         host: "smtp.mailtrap.io",
         port: 2525,
         auth: {
-          user: "0ebdd5fb17a376",
-          pass: "3caedef039849c"
+          user: "user",
+          pass: "pass"
         }
       });
 
@@ -453,8 +431,8 @@ app.get('/sendEmail', async(req, res)=>{
     console.log(inputList)
 
     var mailOptions = {
-        from: inputList.input[0],//'ericzan73964@gmail.com',
-        to: inputList.input[1],//'ericzan73@aol.com',
+        from: inputList.input[0],
+        to: inputList.input[1],
         subject: inputList.input[2],//'test email from api route',
         text: inputList.input[3]//'That was easy!'
     };
@@ -472,7 +450,7 @@ app.get('/sendEmail', async(req, res)=>{
 app.get("/image/:test", async(req,res)=>{
     //let img_path = "./images/test.png"
     console.log(req.params.test)
-    let img_path = `D:/Programming/NodeJS/GitHub_repos/Bar_and_Band_Web_App_BE/images/${req.params.test}`//`C:/Users/Owner/Documents/API/DB_connect/Bar_and_Band_Web_App_BE`  //`
+    let img_path = `./images/${req.params.test}`
     
     res.sendFile(img_path)
 })
@@ -627,8 +605,8 @@ app.get('/sendEmailReal', async(req, res)=>{
         const subject = '🤘 Hello 🤘';
         const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
         var messageParts = [
-            'From: Eric Zandrow <ericzan73964@gmail.com>',
-            'To: Eric Zandrow <ericzan73964@gmail.com>',
+            'From: @gmail.com',
+            'To: @gmail.com',
             'Content-Type: text/html; charset=utf-8',
             'MIME-Version: 1.0',
             `Subject: ${utf8Subject}`,
@@ -641,14 +619,14 @@ app.get('/sendEmailReal', async(req, res)=>{
         console.log(inputList)
 
         /*var mailOptions = {
-            from: inputList.input[0],//'ericzan73964@gmail.com',
-            to: inputList.input[1],//'ericzan73@aol.com',
+            from: inputList.input[0],
+            to: inputList.input[1],
             subject: inputList.input[2],//'test email from api route',
             text: inputList.input[3]//'That was easy!'
         }; */
         messageParts = [
-            `From: ${inputList.input[0]}`,//'ericzan73964@gmail.com',
-            `To: ${inputList.input[1]}`,//'ericzan73@aol.com',
+            `From: ${inputList.input[0]}`,
+            `To: ${inputList.input[1]}`,
             'Content-Type: text/html; charset=utf-8',
             'MIME-Version: 1.0',
             `Subject: ${inputList.input[2]}`,//'test email from api route',
