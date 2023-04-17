@@ -29,21 +29,14 @@ app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb'}));
 
 
-const client = new Client({
+const barClient = new Client({
     user: "postgres",
-    password: "P@125362a",
+    password: "12345",
     host: "localhost",
     port:5432,
     database:"postgres"
 })
 
-const barClient = new Client({
-    user: "postgres",
-    password: "P@125362a",
-    host: "localhost",
-    port:5432,
-    database: "postgres"//"barMusicApp"//
-})
 
 async function makeConnect(){
     barClient.connect().then((res)=>{
