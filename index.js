@@ -1,3 +1,4 @@
+
 //const Client = require('pg').Client
 const {Client} = require('pg')
 
@@ -17,6 +18,8 @@ const {google} = require('googleapis');
 const MailMessage = require('nodemailer/lib/mailer/mail-message');
 const { DefaultTransporter } = require('google-auth-library');
 
+//const coa = require("openai");
+const { Configuration , OpenAIApi } = require('openai');
 
 app = express()
 app.use(cors());
@@ -85,6 +88,40 @@ var storage = multer.diskStorage({
 });
 
 
+app.get("/chat/:indata", async(req, res)=>{
+    let in_text = req.params.indata
+    const config = new Configuration({apiKey : "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"})
+    const oaSession = new OpenAIApi(config)
+    //coa.OpenAIApi.api_key =  "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"
+    let oaresponse = await oaSession.createCompletion({
+    //ChatCompletionRequestMessageRoleEnum({
+        model:"text-davinci-003",
+        prompt:in_text,
+        max_tokens:4000
+    })
+    console.log(oaresponse)
+    res.json(oaresponse.data)
+})
+
+app.get("/chat_image/:indata", async(req, res)=>{
+    let in_text = req.params.indata
+    const config = new Configuration({apiKey : "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"})
+    const oaSession = new OpenAIApi(config)
+    //coa.OpenAIApi.api_key =  "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"
+    let oaresponse = await oaSession.createImage({
+    //ChatCompletionRequestMessageRoleEnum({
+        prompt:in_text,//"a white siamese cat",
+        n:1,
+        size:"256x256"
+    })
+
+    
+
+    console.log(oaresponse)
+    res.json(oaresponse.data.data[0])
+    //res.sendFile(oaresponse.data.data[0].url)
+})
+
 app.get('/', async(req , res ) => {
     //res.html(html_example)
     html_test = "<html><h1>Bar and Band API for Postgres Database</h1></html>"
@@ -130,6 +167,7 @@ app.get('/barData', async(req, res)=>{
     }).then(()=> barClient   
     */
    barClient.query("select * from public.barData")
+   //(`SELECT name,id, "location", website, food_menu, drink_menu, "bandPlayedAt" FROM public.bardata`)
     .then((dbRes)=>{
         //console.log(res)
         console.table(dbRes.rows)
@@ -164,6 +202,7 @@ app.get('/bandData', async(req, res)=>{
     }).then(()=> barClient.
     */
    barClient.query("select * from public.bandData")
+    //(`SELECT spotify, id, website, "style", members  FROM public.banddata`)
     .then((dbRes)=>{
         //console.log(res)
         console.table(dbRes.rows)
